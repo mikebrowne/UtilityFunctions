@@ -6,6 +6,7 @@ by Marcos Lopes de Prado
 
 Public function:
     * hierarchical_cluster(data)
+    * connected_clusters(organized_corr_matrix, correlation_threshol)
 
 '''
 

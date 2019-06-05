@@ -4,7 +4,7 @@ HierarchicalClustering.py
 Holds the Hierarchical Clustering Functionality as learned from "Advances in Financial Machine Learning"
 by Marcos Lopes de Prado
 
-Function:
+Public function:
     * hierarchical_cluster(data)
 
 '''
@@ -12,6 +12,8 @@ Function:
 # Hierarchical clustering
 from itertools import combinations
 import numpy as np
+from itertools import product, combinations_with_replacement
+import pandas as pd
 
 
 class Cluster:
@@ -137,8 +139,55 @@ def hierarchical_cluster(data):
     return corr_matrix[clustered_index].loc[clustered_index]
 
 
-def _test_():
-    import pandas as pd
+def connected_clusters(organized_corr_matrix, correlation_threshold=0.5):
+    '''
+    Gives a list of connected columns for an organized heat map.
+    :param organized_corr_matrix: hierarchically clustered data frame
+    :param correlation_threshold: threshold for minimum correlation values
+    :return: a list of set of connected columns
+    '''
+    # Note: not efficient, just used to get the functionality working properly.
+    # I am sure that it can be made better via graph theory... (later project)
+    dict_corr_vals = {}
+
+    # Get all pairs of columns and relate the correlation value to the pair
+    pairs = combinations_with_replacement(organized_corr_matrix.columns, 2)
+    for i, p in enumerate(pairs):
+        p0, p1 = p[0], p[1]
+        if p0 != p1:
+            val = organized_corr_matrix[p0].loc[p1]
+            dict_corr_vals[i] = [val, p]
+
+    corr_val_df = pd.DataFrame(dict_corr_vals, index=["value", "pair"]).T
+    corr_val_df.sort_values("value", inplace=True)
+
+    # Filter the correlation values by the threshold
+    top_corr_df = corr_val_df.loc[abs(corr_val_df.value) > correlation_threshold]
+    pairs = list(top_corr_df.pair)
+
+    # Initialize the current_cluster
+    current_cluster = None
+
+    max_iteration = 50
+    for _ in range(max_iteration):
+        for item in pairs:
+            if current_cluster is None:
+                current_cluster = set()
+                current_cluster.update(item)
+                pairs.remove(item)
+            else:
+                if any(x in item for x in current_cluster):
+                    current_cluster.update(item)
+                    pairs.remove(item)
+
+        pairs.append(tuple(current_cluster))
+
+        current_cluster = None
+
+    return pairs
+
+
+def _test_(save_plot=False):
     import matplotlib.pyplot as plt
     import seaborn as sns
 
@@ -164,7 +213,14 @@ def _test_():
 
     fig.subplots_adjust(hspace=0.5)
 
-    plt.savefig("HierarchicalClustering_fifa_data.png")
+    conn_clusters = connected_clusters(df_hier_corr, 0.8)
+    print(conn_clusters)
+
+    if save_plot:
+        plt.savefig("HierarchicalClustering_fifa_data.png")
+
+    else:
+        plt.show()
 
 
 if __name__ == "__main__":
